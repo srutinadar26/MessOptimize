@@ -49,24 +49,11 @@ MessOptimize creates a **closed-loop ecosystem**:
 
 ## 👥 User Roles
 
-### 👩‍🎓 Students
-- Meal marking with real-time countdown timers  
-- Savings tracking (₹)  
-- Streak system 🔥  
-- Menu voting system  
-- Personal impact dashboard  
-
-### 👨‍🍳 Mess Staff
-- Live headcount tracking  
-- Auto food quantity calculation  
-- Waste prediction alerts (>20% overproduction)  
-- Historical trend analysis  
-- Post surplus food to marketplace  
-
-### 🤝 NGOs
-- View surplus food listings  
-- Claim food via WhatsApp integration  
-- Activity tracking and verified badge system  
+| User Type | Features |
+|----------|----------|
+| 👩‍🎓 **Students** | • Meal marking with real-time countdown timers <br> • Savings tracking (₹) <br> • Streak system 🔥 <br> • Menu voting system <br> • Personal impact dashboard |
+| 👨‍🍳 **Mess Staff** | • Live headcount tracking <br> • Auto food quantity calculation <br> • Waste prediction alerts (>20% overproduction) <br> • Historical trend analysis <br> • Post surplus food to marketplace |
+| 🤝 **NGOs** | • View surplus food listings <br> • Claim food via WhatsApp integration <br> • Activity tracking and verified badge system |
 
 ---
 
@@ -113,21 +100,13 @@ MessOptimize creates a **closed-loop ecosystem**:
 
 ---
 
-### 📊 Analytics Dashboard
-- Waste reduced (kg)  
-- Money saved (₹)  
-- CO₂ reduced  
-- People fed  
+## 📊 Analytics Dashboard
 
-Charts:
-- Line chart (weekly trends)  
-- Bar chart (meal distribution)  
-- Pie chart (category analysis)  
-
-Additional:
-- Mess bill calculator  
-- PDF report generation  
-- WhatsApp sharing  
+| Category | Features |
+|----------|----------|
+| 📉 **Core Metrics** | • Waste reduced (kg) <br> • Money saved (₹) <br> • CO₂ reduced <br> • People fed |
+| 📈 **Charts & Visualizations** | • Line chart (weekly trends) <br> • Bar chart (meal distribution) <br> • Pie chart (category analysis) |
+| ⚙️ **Additional Features** | • Mess bill calculator <br> • PDF report generation <br> • WhatsApp sharing |
 
 ---
 
@@ -167,19 +146,6 @@ Additional:
 - Light / Dark / System theme support  
 - Fully responsive (web + mobile)  
 
----
-
-## 📸 Screenshots
-
-_Add your screenshots here (Home, Analytics, Marketplace, etc.)_
-
----
-
-## 🎥 Demo
-
-_Add your demo video link here_
-
----
 
 ## 🏗️ Architecture
 
