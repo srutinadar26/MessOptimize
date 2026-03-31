@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../components/Toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import { MenuCard } from '../../components/MenuCard';
@@ -29,7 +28,6 @@ const CATEGORIES = [
 export default function MenuScreen() {
   const { isDark } = useTheme();
   const { user } = useAuth();
-  const { showToast } = useToast();
   const scheme = isDark ? Colors.dark : Colors.light;
   const today = new Date().getDay();
   const hasPriority = (user?.streak || 0) >= 7;
@@ -38,6 +36,7 @@ export default function MenuScreen() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [menu, setMenu] = useState<MenuItem[]>(SAMPLE_MENU);
 
+  // Filter menu items based on selected day and category
   const filteredMenu = menu.filter(item => {
     const dayMatch = item.day === selectedDay;
     const catMatch = selectedCategory === 'all' || item.category === selectedCategory;
@@ -71,6 +70,25 @@ export default function MenuScreen() {
     );
   }
 
+  // Get category-specific items count
+  const getCategoryCount = (categoryId: string) => {
+    if (categoryId === 'all') {
+      return menu.filter(item => item.day === selectedDay).length;
+    }
+    return menu.filter(item => item.day === selectedDay && item.category === categoryId).length;
+  };
+
+  // Handle category press without popups
+  const handleCategoryPress = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+  };
+
+  // Get category icon
+  const getCategoryIcon = (categoryId: string) => {
+    const category = CATEGORIES.find(c => c.id === categoryId);
+    return category?.emoji || '🍽';
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: scheme.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -85,6 +103,7 @@ export default function MenuScreen() {
           {DAYS.map((day, i) => {
             const isSelected = i === selectedDay;
             const isToday = i === today;
+            const dayItemCount = menu.filter(item => item.day === i).length;
             return (
               <TouchableOpacity
                 key={day}
@@ -96,19 +115,25 @@ export default function MenuScreen() {
               >
                 <Text style={[styles.dayText, { color: isSelected ? '#FFF' : scheme.text }]}>{day}</Text>
                 {isToday && <View style={[styles.todayDot, isSelected && { backgroundColor: '#FFF' }]} />}
+                {dayItemCount > 0 && (
+                  <Text style={[styles.itemCount, { color: isSelected ? '#FFF' : scheme.textMuted }]}>
+                    {dayItemCount}
+                  </Text>
+                )}
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
-        {/* Category filter */}
+        {/* Category filter - Now includes Fast Food and Beverages */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={styles.catScrollContent}>
           {CATEGORIES.map(cat => {
             const isSelected = cat.id === selectedCategory;
+            const itemCount = getCategoryCount(cat.id);
             return (
               <TouchableOpacity
                 key={cat.id}
-                onPress={() => setSelectedCategory(cat.id)}
+                onPress={() => handleCategoryPress(cat.id)}
                 style={[
                   styles.catChip,
                   {
@@ -118,7 +143,16 @@ export default function MenuScreen() {
                 ]}
               >
                 <Text style={styles.catEmoji}>{cat.emoji}</Text>
-                <Text style={[styles.catText, { color: isSelected ? '#B8860B' : scheme.textSecondary }]}>{cat.label}</Text>
+                <Text style={[styles.catText, { color: isSelected ? '#B8860B' : scheme.textSecondary }]}>
+                  {cat.label}
+                </Text>
+                {itemCount > 0 && (
+                  <View style={[styles.countBadge, { backgroundColor: isSelected ? Colors.accent : scheme.border }]}>
+                    <Text style={[styles.countText, { color: isSelected ? '#FFF' : scheme.textMuted }]}>
+                      {itemCount}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -147,7 +181,6 @@ export default function MenuScreen() {
               ].map(opt => (
                 <TouchableOpacity
                   key={opt.name}
-                  onPress={() => showToast(`${opt.emoji} ${opt.name} selected!`, 'success')}
                   style={[styles.priorityOption, { backgroundColor: scheme.card, borderColor: scheme.border }]}
                 >
                   <Text style={styles.priorityOptEmoji}>{opt.emoji}</Text>
@@ -158,12 +191,31 @@ export default function MenuScreen() {
           </LinearGradient>
         )}
 
+        {/* Category Header */}
+        {selectedCategory !== 'all' && filteredMenu.length > 0 && (
+          <View style={styles.categoryHeader}>
+            <Text style={styles.categoryHeaderEmoji}>
+              {CATEGORIES.find(c => c.id === selectedCategory)?.emoji}
+            </Text>
+            <Text style={[styles.categoryHeaderTitle, { color: scheme.text }]}>
+              {CATEGORIES.find(c => c.id === selectedCategory)?.label}
+            </Text>
+            <Text style={[styles.categoryHeaderCount, { color: scheme.textSecondary }]}>
+              ({filteredMenu.length})
+            </Text>
+          </View>
+        )}
+
         {/* Menu items */}
         {filteredMenu.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🍽</Text>
-            <Text style={[styles.emptyTitle, { color: scheme.textSecondary }]}>No items for this selection</Text>
-            <Text style={[styles.emptyDesc, { color: scheme.textMuted }]}>Try a different day or category</Text>
+            <Text style={styles.emptyEmoji}>{getCategoryIcon(selectedCategory)}</Text>
+            <Text style={[styles.emptyTitle, { color: scheme.textSecondary }]}>
+              No {selectedCategory !== 'all' ? CATEGORIES.find(c => c.id === selectedCategory)?.label : ''} items available
+            </Text>
+            <Text style={[styles.emptyDesc, { color: scheme.textMuted }]}>
+              Try a different day
+            </Text>
           </View>
         ) : (
           filteredMenu.map(item => (
@@ -206,9 +258,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     minWidth: 52,
+    position: 'relative',
   },
   dayText: { fontSize: 14, fontWeight: '600' },
   todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.secondary, marginTop: 4 },
+  itemCount: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   catScroll: { marginBottom: 16 },
   catScrollContent: { gap: 8, paddingRight: 20 },
   catChip: {
@@ -219,9 +277,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
+    position: 'relative',
   },
   catEmoji: { fontSize: 14 },
   catText: { fontSize: 13, fontWeight: '600' },
+  countBadge: {
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  countText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 16, fontWeight: '600' },
@@ -231,6 +302,26 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', gap: 6, alignItems: 'baseline' },
   summaryValue: { fontSize: 16, fontWeight: '700' },
   summaryLabel: { fontSize: 13 },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  categoryHeaderEmoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  categoryHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    flex: 1,
+  },
+  categoryHeaderCount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
 
   // Priority unlock
   priorityCard: { borderRadius: 20, padding: 18, marginBottom: 16 },
