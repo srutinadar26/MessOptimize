@@ -36,26 +36,42 @@ export default function SignupScreen() {
   const [role, setRole] = useState<UserRole>('student');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   async function handleSignup() {
-    if (!name || !email || !password) {
-      Alert.alert('Missing fields', 'Please fill in all fields');
+    // Validation
+    if (!name.trim()) {
+      Alert.alert('Missing Field', 'Please enter your full name');
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert('Missing Field', 'Please enter your email');
+      return;
+    }
+    if (!password) {
+      Alert.alert('Missing Field', 'Please enter a password');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Password mismatch', 'Passwords do not match');
+      Alert.alert('Password Mismatch', 'Passwords do not match');
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Weak password', 'Password must be at least 6 characters');
+      Alert.alert('Weak Password', 'Password must be at least 6 characters');
       return;
     }
+
     setLoading(true);
     try {
-      await signup(name, email, password, role);
-      router.replace('/(tabs)');
-    } catch (e) {
-      Alert.alert('Signup failed', 'Please try again');
+      const result = await signup(name.trim(), email.trim(), password, role);
+      
+      if (result.success) {
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Signup Failed', result.error || 'Unable to create account');
+      }
+    } catch (error: any) {
+      Alert.alert('Signup Failed', error.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -157,10 +173,20 @@ export default function SignupScreen() {
               style={[styles.input, { color: scheme.text }]}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
               placeholder="Re-enter password"
               placeholderTextColor={scheme.textMuted}
             />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+              <Text style={styles.eyeIcon}>{showConfirmPassword ? '🙈' : '👁'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Demo Hint */}
+          <View style={[styles.demoHint, { backgroundColor: Colors.accent + '20' }]}>
+            <Text style={[styles.hintText, { color: scheme.textSecondary }]}>
+              Demo: Use any email and password (min 6 chars)
+            </Text>
           </View>
 
           <Button
@@ -227,6 +253,13 @@ const styles = StyleSheet.create({
   inputIcon: { fontSize: 16 },
   input: { flex: 1, fontSize: 15, fontWeight: '500' },
   eyeIcon: { fontSize: 16 },
+  demoHint: {
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  hintText: { fontSize: 11, lineHeight: 15 },
   signupBtn: { width: '100%', marginTop: 20, marginBottom: 20 },
   loginRow: { flexDirection: 'row', justifyContent: 'center' },
   loginText: { fontSize: 14 },

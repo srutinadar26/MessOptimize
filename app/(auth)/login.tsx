@@ -25,7 +25,7 @@ const ROLES: { id: UserRole; label: string; emoji: string; desc: string }[] = [
 ];
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const { isDark } = useTheme();
   const scheme = isDark ? Colors.dark : Colors.light;
 
@@ -42,10 +42,30 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      await login(email, password, role);
-      router.replace('/(tabs)');
-    } catch (e) {
-      Alert.alert('Login failed', 'Please check your credentials');
+      const result = await login(email, password, role);
+      if (result.success) {
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Login Failed', result.error || 'Please check your credentials');
+      }
+    } catch (e: any) {
+      Alert.alert('Login Failed', e.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setLoading(true);
+    try {
+      const result = await loginWithGoogle(role);
+      if (result.success) {
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Google Sign-In Failed', result.error || 'Please try again');
+      }
+    } catch (error: any) {
+      Alert.alert('Google Sign-In Failed', error.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -124,9 +144,7 @@ export default function LoginScreen() {
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
               <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
             </TouchableOpacity>
-          </View>
-
-        
+          </View><br></br>
 
           <Button
             title="Sign In"
@@ -141,11 +159,6 @@ export default function LoginScreen() {
             <Text style={[styles.dividerText, { color: scheme.textMuted }]}>or</Text>
             <View style={[styles.divider, { backgroundColor: scheme.border }]} />
           </View>
-
-          <TouchableOpacity style={[styles.googleBtn, { backgroundColor: scheme.card, borderColor: scheme.border }]}>
-            <Text style={styles.googleIcon}>G</Text>
-            <Text style={[styles.googleText, { color: scheme.text }]}>Continue with Google</Text>
-          </TouchableOpacity>
 
           <View style={styles.signupRow}>
             <Text style={[styles.signupText, { color: scheme.textSecondary }]}>Don't have an account? </Text>
@@ -204,7 +217,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 15, fontWeight: '500' },
   eyeIcon: { fontSize: 16 },
   demoHint: {
-    backgroundColor: Colors.accent + '20',
     borderRadius: 10,
     padding: 10,
     marginTop: 8,
@@ -219,13 +231,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 12,
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
     marginBottom: 24,
   },
-  googleIcon: { fontSize: 18, fontWeight: '800', color: Colors.secondary },
+  googleIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleIcon: { fontSize: 16, fontWeight: '800', color: Colors.secondary },
   googleText: { fontSize: 15, fontWeight: '600' },
   signupRow: { flexDirection: 'row', justifyContent: 'center' },
   signupText: { fontSize: 14 },

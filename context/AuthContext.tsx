@@ -1,54 +1,103 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, UserRole } from '../constants/types';
+import { Platform } from 'react-native';
 
-// Firebase - IMPORT FROM YOUR CONFIG.JS
-import { auth } from '../app/firebase/config'; // Change this line
+// Firebase
+import { auth } from '../app/firebase/config';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  signInWithCredential,
   GoogleAuthProvider,
+  signInWithCredential,
   User as FirebaseUser,
+  AuthErrorCodes,
 } from 'firebase/auth';
 
 // Google Auth
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
-  signup: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
+  login: (email: string, password: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
+  signup: (name: string, email: string, password: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  loginWithGoogle: (role: UserRole) => Promise<void>;
+  loginWithGoogle: (role: UserRole) => Promise<{ success: boolean; error?: string }>;
   updateUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+// Helper function to get Firebase error message
+const getFirebaseErrorMessage = (errorCode: string): string => {
+  switch (errorCode) {
+    case AuthErrorCodes.INVALID_EMAIL:
+      return 'Invalid email address format';
+    case AuthErrorCodes.USER_DELETED:
+      return 'Email not registered. Please sign up first.';
+    case AuthErrorCodes.INVALID_PASSWORD:
+      return 'Incorrect password. Please try again.';
+    case AuthErrorCodes.EMAIL_EXISTS:
+      return 'Email already registered. Please login instead.';
+    case AuthErrorCodes.WEAK_PASSWORD:
+      return 'Password should be at least 6 characters.';
+    case 'auth/invalid-credential':
+      return 'Invalid email or password.';
+    default:
+      return 'An error occurred. Please try again.';
+  }
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Google config
+  const redirectUri = makeRedirectUri({
+    scheme: 'messoptimize',
+    path: 'oauth2redirect',
+  });
+
   const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: '351126499260-vjhf437ca2mv5rpn6fpvgipvs2f4lhm1.apps.googleusercontent.com',
+    iosClientId: '351126499260-vjhf437ca2mv5rpn6fpvgipvs2f4lhm1.apps.googleusercontent.com',
+    androidClientId: '351126499260-vjhf437ca2mv5rpn6fpvgipvs2f4lhm1.apps.googleusercontent.com',
     webClientId: '351126499260-vjhf437ca2mv5rpn6fpvgipvs2f4lhm1.apps.googleusercontent.com',
+    redirectUri: redirectUri,
   });
 
   useEffect(() => {
     loadUser();
     
-    // Listen to auth state changes
+    // Listen to Firebase auth state changes
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const storedUser = await AsyncStorage.getItem('@mess_user');
         if (storedUser) {
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+        } else {
+          // Create new user from Firebase data
+          const userName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User';
+          
+          const newUser: User = {
+            id: firebaseUser.uid,
+            name: userName,
+            email: firebaseUser.email || '',
+            role: 'student',
+            streak: 0,
+            totalMealsSaved: 0,
+            moneySaved: 0,
+            co2Reduced: 0,
+          };
+          await AsyncStorage.setItem('@mess_user', JSON.stringify(newUser));
+          setUser(newUser);
         }
       } else {
         setUser(null);
@@ -70,37 +119,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function login(email: string, password: string, role: UserRole) {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-      const u: User = {
-        id: userCredential.user.uid,
-        name: email.split('@')[0],
-        email,
-        role,
-        streak: 0,
-        totalMealsSaved: 0,
-        moneySaved: 0,
-        co2Reduced: 0,
-      };
-
-      await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
-      setUser(u);
-    } catch (error: any) {
-      console.error('Login error:', error);
-      throw new Error(error.message);
+  async function login(email: string, password: string, role: UserRole): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+    
+    if (!userCredential.user) {
+      return { success: false, error: 'Email not registered. Please sign up first.' };
     }
-  }
 
-  async function signup(name: string, email: string, password: string, role: UserRole) {
+    // ✅ CRITICAL: First try to get the name from AsyncStorage (where signup stored it)
+    let userName = '';
+    const storedUser = await AsyncStorage.getItem('@mess_user');
+    
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      userName = parsed.name;
+      console.log('✅ Retrieved name from storage:', userName);
+    }
+    
+    // If no stored name, check if Firebase has displayName
+    if (!userName && userCredential.user.displayName) {
+      userName = userCredential.user.displayName;
+      console.log('✅ Using Firebase displayName:', userName);
+    }
+    
+    // If still no name, use email prefix (last resort)
+    if (!userName) {
+      userName = email.split('@')[0];
+      console.log('⚠️ Using email prefix as name:', userName);
+    }
+
+    const u: User = {
+      id: userCredential.user.uid,
+      name: userName,  // ✅ This will be the name from signup
+      email: email.trim(),
+      role,
+      streak: 0,
+      totalMealsSaved: 0,
+      moneySaved: 0,
+      co2Reduced: 0,
+    };
+
+    // ✅ Save the user with the correct name back to storage
+    await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
+    setUser(u);
+    
+    console.log('✅ Login successful - User name set to:', u.name);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Login error:', error);
+    const errorMessage = getFirebaseErrorMessage(error.code);
+    return { success: false, error: errorMessage };
+  }
+}
+
+  async function signup(name: string, email: string, password: string, role: UserRole): Promise<{ success: boolean; error?: string }> {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
 
       const u: User = {
         id: userCredential.user.uid,
-        name,
-        email,
+        name: name.trim(),
+        email: email.trim(),
         role,
         streak: 0,
         totalMealsSaved: 0,
@@ -110,25 +190,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
       setUser(u);
+      return { success: true };
     } catch (error: any) {
       console.error('Signup error:', error);
-      throw new Error(error.message);
+      const errorMessage = getFirebaseErrorMessage(error.code);
+      return { success: false, error: errorMessage };
     }
   }
 
-  async function loginWithGoogle(role: UserRole) {
+  async function loginWithGoogle(role: UserRole): Promise<{ success: boolean; error?: string }> {
     try {
       const result = await promptAsync();
 
       if (result?.type === 'success') {
         const { id_token } = result.params;
-
         const credential = GoogleAuthProvider.credential(id_token);
         const userCredential = await signInWithCredential(auth, credential);
 
+        const userName = userCredential.user.displayName || 
+                         userCredential.user.email?.split('@')[0] || 
+                         'Google User';
+
         const u: User = {
           id: userCredential.user.uid,
-          name: userCredential.user.displayName || 'Google User',
+          name: userName,
           email: userCredential.user.email || '',
           role,
           streak: 0,
@@ -139,12 +224,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
         setUser(u);
+        return { success: true };
+      } else if (result?.type === 'cancel') {
+        return { success: false, error: 'Google sign-in was cancelled' };
       } else {
-        throw new Error('Google sign-in was cancelled');
+        return { success: false, error: 'Google sign-in failed. Please try again.' };
       }
     } catch (error: any) {
       console.error('Google login error:', error);
-      throw new Error(error.message);
+      
+      if (error.message?.includes('redirect_uri_mismatch')) {
+        return { success: false, error: 'Configuration error. Please contact support.' };
+      }
+      
+      return { success: false, error: error.message || 'Google sign-in failed. Please try again.' };
     }
   }
 
