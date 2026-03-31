@@ -33,18 +33,17 @@ export default function ProfileScreen() {
   }
 
   async function handleLogout() {
-    Alert.alert('Logout', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/(auth)/login');
-        },
+  Alert.alert('Logout', 'Are you sure you want to sign out?', [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Sign Out',
+      style: 'destructive',
+      onPress: async () => {
+        await logout();
       },
-    ]);
-  }
+    },
+  ]);
+}
 
   const roleLabel = user?.role === 'student' ? '🎓 Student' : user?.role === 'staff' ? '👨‍🍳 Mess Staff' : '🤝 NGO Partner';
 
