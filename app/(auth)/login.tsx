@@ -29,8 +29,8 @@ export default function LoginScreen() {
   const { isDark } = useTheme();
   const scheme = isDark ? Colors.dark : Colors.light;
 
-  const [email, setEmail] = useState('student@mess.com');
-  const [password, setPassword] = useState('demo1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('student');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -126,11 +126,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.demoHint}>
-            <Text style={[styles.hintText, { color: scheme.textMuted }]}>
-              💡 Try: student@mess.com / staff@mess.com / ngo@care.org · password: anything
-            </Text>
-          </View>
+        
 
           <Button
             title="Sign In"
