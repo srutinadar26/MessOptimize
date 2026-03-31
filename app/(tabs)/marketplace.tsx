@@ -8,6 +8,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,19 +27,25 @@ const FILTERS = [
   { id: 'Bakery', label: 'Bakery', emoji: '🍞' },
   { id: 'Full Meal', label: 'Full Meal', emoji: '🍚' },
   { id: 'Fruits', label: 'Fruits', emoji: '🍎' },
+  { id: 'Fast Food', label: 'Fast Food', emoji: '🍔' },
+  { id: 'Beverages', label: 'Beverages', emoji: '🥤' },
 ];
 
+const ITEMS_PER_PAGE = 4;
+
 export default function MarketplaceScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const { isDark } = useTheme();
   const scheme = isDark ? Colors.dark : Colors.light;
   const { showToast } = useToast();
   const [filter, setFilter] = useState('all');
   const [items, setItems] = useState<MarketplaceItem[]>(SAMPLE_MARKETPLACE);
-  const [showPostForm, setShowPostForm] = useState(false);
   const ngoFeed = ANALYTICS_DATA.ngoActivityFeed;
 
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter);
+  const displayedItems = filtered.slice(0, ITEMS_PER_PAGE);
+  const hasMoreItems = filtered.length > ITEMS_PER_PAGE;
 
   function handleClaim(item: MarketplaceItem) {
     if (item.claimedBy) {
@@ -64,6 +71,18 @@ export default function MarketplaceScreen() {
         },
       ]
     );
+  }
+
+  function handleShowMore() {
+    // Navigate to the marketplace-all screen with the filtered items and current filter
+    router.push({
+      pathname: '/(tabs)/marketplace-all',
+      params: {
+        items: JSON.stringify(filtered),
+        currentFilter: filter,
+        categoryName: filter === 'all' ? 'All' : filter,
+      },
+    });
   }
 
   const isNgo = user?.role === 'ngo';
@@ -117,67 +136,82 @@ export default function MarketplaceScreen() {
         </ScrollView>
 
         {/* Items */}
-        {filtered.length === 0 ? (
+        {displayedItems.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🍽</Text>
             <Text style={[styles.emptyTitle, { color: scheme.textSecondary }]}>No items available</Text>
           </View>
         ) : (
-          filtered.map((item, idx) => (
-            <Animated.View key={item.id} entering={FadeInDown.delay(idx * 80).springify()}>
-              <Card style={{ ...styles.itemCard, ...(item.claimedBy ? styles.itemClaimed : {}) }}>
-                <View style={styles.itemHeader}>
-                  <View style={[styles.itemIconWrap, { backgroundColor: Colors.accent + '20' }]}>
-                    <Text style={styles.itemEmoji}>{item.imageEmoji}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.itemTitleRow}>
-                      <Text style={[styles.itemName, { color: scheme.text }]} numberOfLines={1}>{item.name}</Text>
-                      {item.ngoVerified && (
-                        <View style={styles.verifiedBadge}>
-                          <Text style={styles.verifiedText}>✓ Verified</Text>
-                        </View>
-                      )}
+          <>
+            {displayedItems.map((item, idx) => (
+              <Animated.View key={item.id} entering={FadeInDown.delay(idx * 80).springify()}>
+                <Card style={{ ...styles.itemCard, ...(item.claimedBy ? styles.itemClaimed : {}) }}>
+                  <View style={styles.itemHeader}>
+                    <View style={[styles.itemIconWrap, { backgroundColor: Colors.accent + '20' }]}>
+                      <Text style={styles.itemEmoji}>{item.imageEmoji}</Text>
                     </View>
-                    <Text style={[styles.itemMess, { color: scheme.textSecondary }]}>{item.messName}</Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.itemTitleRow}>
+                        <Text style={[styles.itemName, { color: scheme.text }]} numberOfLines={1}>{item.name}</Text>
+                        {item.ngoVerified && (
+                          <View style={styles.verifiedBadge}>
+                            <Text style={styles.verifiedText}>✓ Verified</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.itemMess, { color: scheme.textSecondary }]}>{item.messName}</Text>
+                    </View>
                   </View>
-                </View>
 
-                <View style={styles.itemDetails}>
-                  <View style={styles.itemDetail}>
-                    <Text style={[styles.detailLabel, { color: scheme.textMuted }]}>Quantity</Text>
-                    <Text style={[styles.detailVal, { color: scheme.text }]}>{item.quantity}</Text>
+                  <View style={styles.itemDetails}>
+                    <View style={styles.itemDetail}>
+                      <Text style={[styles.detailLabel, { color: scheme.textMuted }]}>Quantity</Text>
+                      <Text style={[styles.detailVal, { color: scheme.text }]}>{item.quantity}</Text>
+                    </View>
+                    <View style={styles.itemDetail}>
+                      <Text style={[styles.detailLabel, { color: scheme.textMuted }]}>Category</Text>
+                      <Text style={[styles.detailVal, { color: scheme.text }]}>{item.category}</Text>
+                    </View>
+                    <View style={styles.itemDetail}>
+                      <Text style={[styles.detailLabel, { color: scheme.textMuted }]}>Expires in</Text>
+                      <CountdownTimer deadline={item.expiresAt} />
+                    </View>
                   </View>
-                  <View style={styles.itemDetail}>
-                    <Text style={[styles.detailLabel, { color: scheme.textMuted }]}>Category</Text>
-                    <Text style={[styles.detailVal, { color: scheme.text }]}>{item.category}</Text>
-                  </View>
-                  <View style={styles.itemDetail}>
-                    <Text style={[styles.detailLabel, { color: scheme.textMuted }]}>Expires in</Text>
-                    <CountdownTimer deadline={item.expiresAt} />
-                  </View>
-                </View>
 
-                <Text style={[styles.postedBy, { color: scheme.textMuted }]}>
-                  Posted by {item.postedBy}
+                  <Text style={[styles.postedBy, { color: scheme.textMuted }]}>
+                    Posted by {item.postedBy}
+                  </Text>
+
+                  {item.claimedBy ? (
+                    <View style={[styles.claimedBadge, { backgroundColor: Colors.success + '15' }]}>
+                      <Text style={styles.claimedText}>✅ Claimed</Text>
+                    </View>
+                  ) : (
+                    <Button
+                      title={isNgo ? '🤝 Claim for NGO' : '📱 Claim via WhatsApp'}
+                      variant="primary"
+                      size="md"
+                      onPress={() => handleClaim(item)}
+                      style={styles.claimBtn}
+                    />
+                  )}
+                </Card>
+              </Animated.View>
+            ))}
+            
+            {/* Show More Button */}
+            {hasMoreItems && (
+              <TouchableOpacity
+                style={[styles.showMoreButton, { backgroundColor: scheme.card, borderColor: scheme.border }]}
+                onPress={handleShowMore}
+              >
+                <Text style={[styles.showMoreText, { color: Colors.primary }]}>
+                  Show More ({filtered.length - ITEMS_PER_PAGE} more item{filtered.length - ITEMS_PER_PAGE !== 1 ? 's' : ''})
                 </Text>
-
-                {item.claimedBy ? (
-                  <View style={[styles.claimedBadge, { backgroundColor: Colors.success + '15' }]}>
-                    <Text style={styles.claimedText}>✅ Claimed</Text>
-                  </View>
-                ) : (
-                  <Button
-                    title={isNgo ? '🤝 Claim for NGO' : '📱 Claim via WhatsApp'}
-                    variant="primary"
-                    size="md"
-                    onPress={() => handleClaim(item)}
-                    style={styles.claimBtn}
-                  />
-                )}
-              </Card>
-            </Animated.View>
-          ))
+                <Text style={[styles.showMoreArrow, { color: Colors.primary }]}>→</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
         {/* NGO Activity Feed */}
@@ -297,6 +331,27 @@ const styles = StyleSheet.create({
   claimBtn: { width: '100%' },
   claimedBadge: { borderRadius: 14, padding: 14, alignItems: 'center' },
   claimedText: { fontSize: 14, fontWeight: '700', color: Colors.success },
+
+  showMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  showMoreArrow: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
 
   staffCta: { alignItems: 'center', paddingVertical: 28, marginTop: 8 },
   staffCtaEmoji: { fontSize: 40, marginBottom: 8 },

@@ -38,6 +38,9 @@ export default function LeaderboardScreen() {
   const podium = data.slice(0, 3);
   const rest = data.slice(3);
 
+  // Calculate streak percentage (max 30 days)
+  const streakPercentage = Math.min((user?.streak || 0) / 30, 1);
+
   return (
     <View style={[styles.root, { backgroundColor: scheme.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -77,7 +80,6 @@ export default function LeaderboardScreen() {
 
           {/* 1st place */}
           <View style={styles.podiumCenter}>
-            <Text style={styles.crownEmoji}>👑</Text>
             <View style={[styles.podiumAvatar, styles.podiumAvatarFirst, { backgroundColor: Colors.accent + '30' }]}>
               <Text style={styles.podiumAvatarTextFirst}>🥇</Text>
             </View>
@@ -119,7 +121,7 @@ export default function LeaderboardScreen() {
             <View style={styles.myBadges}>
               {myEntry.badges.map((b, i) => (
                 <View key={i} style={[styles.badge, { backgroundColor: Colors.accent + '20' }]}>
-                  <Text style={styles.badgeText}>{b} {BADGE_LABELS[b] || ''}</Text>
+                  <Text style={styles.badgeText}>{BADGE_LABELS[b]}</Text>
                 </View>
               ))}
             </View>
@@ -157,33 +159,54 @@ export default function LeaderboardScreen() {
           </Animated.View>
         ))}
 
-        {/* Streak calendar */}
-        <Text style={[styles.sectionLabel, { color: scheme.text }]}>📅 Your 30-Day Streak</Text>
-        <Card style={styles.calendarCard}>
-          <View style={styles.calendarGrid}>
-            {Array.from({ length: 30 }, (_, i) => {
-              const active = i < (user?.streak || 0);
-              return (
-                <View
-                  key={i}
-                  style={[
-                    styles.calDay,
-                    { backgroundColor: active ? Colors.success : isDark ? '#333' : '#EEF1F5' },
-                  ]}
-                >
-                  {active && <Text style={styles.calDayCheck}>✓</Text>}
-                </View>
-              );
-            })}
+        {/* Streak calendar - Progress Bar */}
+        <Text style={[styles.sectionLabel, { color: scheme.text }]}>📅 30-Day Streak</Text>
+        <Card style={styles.streakCard}>
+          <View style={styles.streakHeader}>
+            <Text style={[styles.streakLabel, { color: scheme.text }]}>
+              Current Streak: {user?.streak || 0} days
+            </Text>
+            <Text style={[styles.streakTarget, { color: scheme.textSecondary }]}>
+              Goal: 30 days
+            </Text>
           </View>
-          <View style={styles.calLegend}>
-            <View style={styles.calLegendItem}>
-              <View style={[styles.calLegendDot, { backgroundColor: Colors.success }]} />
-              <Text style={[styles.calLegendText, { color: scheme.textSecondary }]}>Active</Text>
+          
+          <View style={styles.progressBarContainer}>
+            <View 
+              style={[
+                styles.progressBarFill, 
+                { 
+                  width: `${streakPercentage * 100}%`,
+                  backgroundColor: Colors.success 
+                }
+              ]} 
+            />
+          </View>
+          
+          <View style={styles.streakStats}>
+            <View style={styles.streakStat}>
+              <Text style={[styles.streakStatValue, { color: Colors.success }]}>
+                {user?.streak || 0}
+              </Text>
+              <Text style={[styles.streakStatLabel, { color: scheme.textMuted }]}>
+                Days Completed
+              </Text>
             </View>
-            <View style={styles.calLegendItem}>
-              <View style={[styles.calLegendDot, { backgroundColor: isDark ? '#333' : '#EEF1F5' }]} />
-              <Text style={[styles.calLegendText, { color: scheme.textSecondary }]}>Missed</Text>
+            <View style={styles.streakStat}>
+              <Text style={[styles.streakStatValue, { color: scheme.textSecondary }]}>
+                {30 - (user?.streak || 0)}
+              </Text>
+              <Text style={[styles.streakStatLabel, { color: scheme.textMuted }]}>
+                Days Remaining
+              </Text>
+            </View>
+            <View style={styles.streakStat}>
+              <Text style={[styles.streakStatValue, { color: Colors.info }]}>
+                {Math.round(streakPercentage * 100)}%
+              </Text>
+              <Text style={[styles.streakStatLabel, { color: scheme.textMuted }]}>
+                Progress
+              </Text>
             </View>
           </View>
         </Card>
@@ -214,7 +237,6 @@ const styles = StyleSheet.create({
   podiumContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', marginBottom: 24, paddingTop: 20 },
   podiumSide: { flex: 1, alignItems: 'center' },
   podiumCenter: { flex: 1.2, alignItems: 'center' },
-  crownEmoji: { fontSize: 28, marginBottom: 4 },
   podiumAvatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   podiumAvatarFirst: { width: 56, height: 56, borderRadius: 18 },
   podiumAvatarText: { fontSize: 24 },
@@ -265,15 +287,48 @@ const styles = StyleSheet.create({
   rankPtsLabel: { fontSize: 10, textAlign: 'right' },
   inputBg: {},
 
-  // Calendar
-  calendarCard: { marginBottom: 12 },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  calDay: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  calDayCheck: { fontSize: 12, fontWeight: '800', color: '#FFF' },
-  calLegend: { flexDirection: 'row', gap: 16, marginTop: 12 },
-  calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  calLegendDot: { width: 10, height: 10, borderRadius: 3 },
-  calLegendText: { fontSize: 12 },
+  // Streak Progress Bar
+  streakCard: { marginBottom: 12, padding: 16 },
+  streakHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  streakLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  streakTarget: {
+    fontSize: 12,
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  streakStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+  },
+  streakStat: {
+    alignItems: 'center',
+  },
+  streakStatValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  streakStatLabel: {
+    fontSize: 11,
+    marginTop: 4,
+  },
 
   // Achievements
   achievementsSub: { fontSize: 13, marginBottom: 12 },
