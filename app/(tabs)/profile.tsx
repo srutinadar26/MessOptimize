@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +26,7 @@ export default function ProfileScreen() {
   const [dietary, setDietary] = useState<string[]>(['Veg']);
   const [notifications, setNotifications] = useState(true);
   const [offlineMode, setOfflineMode] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   function toggleDietary(pref: string) {
     setDietary(prev =>
@@ -32,20 +34,35 @@ export default function ProfileScreen() {
     );
   }
 
-  async function handleLogout() {
-  Alert.alert('Logout', 'Are you sure you want to sign out?', [
-    { text: 'Cancel', style: 'cancel' },
-    {
-      text: 'Sign Out',
-      style: 'destructive',
-      onPress: async () => {
-        await logout();
-      },
-    },
-  ]);
-}
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setShowLogoutModal(false);
+      router.replace('/(auth)/login');
+    } catch (error) {
+      Alert.alert('Logout Failed', 'Please try again');
+    }
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutModal(true);
+  };
 
   const roleLabel = user?.role === 'student' ? '🎓 Student' : user?.role === 'staff' ? '👨‍🍳 Mess Staff' : '🤝 NGO Partner';
+
+  if (!user) {
+    return (
+      <View style={[styles.root, { backgroundColor: scheme.background }]}>
+        <Text style={[styles.text, { color: scheme.text }]}>Please log in</Text>
+        <TouchableOpacity 
+          style={styles.loginButton}
+          onPress={() => router.push('/(auth)/login')}
+        >
+          <Text style={styles.loginButtonText}>Go to Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: scheme.background }]}>
@@ -220,20 +237,69 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
-        {/* Logout */}
-        <Button
-          title="Sign Out"
-          variant="outline"
-          icon="👋"
-          size="lg"
-          onPress={handleLogout}
-          style={styles.logoutBtn}
-        />
+        {/* Logout Button - Beautiful Design */}
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={confirmLogout}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={['#FEF2F2', '#FEE2E2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.logoutGradient}
+          >
+            <View style={styles.logoutContent}>
+              <View style={styles.logoutIconContainer}>
+                <Text style={styles.logoutIcon}>👋</Text>
+              </View>
+              <View style={styles.logoutTextContainer}>
+                <Text style={styles.logoutTitle}>Sign Out</Text>
+                <Text style={styles.logoutSubtitle}>Log out of your account</Text>
+              </View>
+              <Text style={styles.logoutArrow}>→</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
 
         <Text style={[styles.footer, { color: scheme.textMuted }]}>
           Made with 💚 for a waste-free campus
         </Text>
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: scheme.card }]}>
+            <View style={styles.modalIconContainer}>
+              <Text style={styles.modalIcon}>👋</Text>
+            </View>
+            <Text style={[styles.modalTitle, { color: scheme.text }]}>Sign Out?</Text>
+            <Text style={[styles.modalText, { color: scheme.textSecondary }]}>
+              Are you sure you want to sign out? You'll need to sign in again to access your account.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleLogout}
+              >
+                <Text style={styles.confirmButtonText}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -328,9 +394,6 @@ const styles = StyleSheet.create({
   aboutLabel: { flex: 1, fontSize: 14, fontWeight: '500' },
   aboutValue: { fontSize: 13 },
 
-  logoutBtn: { marginHorizontal: 20, marginTop: 28, width: 'auto' },
-  footer: { textAlign: 'center', fontSize: 12, marginTop: 20, marginBottom: 12 },
-
   // Analytics
   analyticsBtn: {
     flexDirection: 'row',
@@ -344,4 +407,109 @@ const styles = StyleSheet.create({
   analyticsBtnIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   analyticsBtnTitle: { fontSize: 15, fontWeight: '700' },
   analyticsBtnSub: { fontSize: 12, marginTop: 2 },
+
+  // Logout Button - Beautiful Design
+  logoutButton: {
+    marginHorizontal: 20,
+    marginTop: 28,
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoutGradient: {
+    borderRadius: 16,
+    padding: 16,
+  },
+  logoutContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  logoutIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logoutIcon: {
+    fontSize: 24,
+  },
+  logoutTextContainer: {
+    flex: 1,
+  },
+  logoutTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#DC2626',
+    marginBottom: 2,
+  },
+  logoutSubtitle: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  logoutArrow: {
+    fontSize: 20,
+    color: '#DC2626',
+    fontWeight: '600',
+  },
+
+  footer: { textAlign: 'center', fontSize: 12, marginTop: 20, marginBottom: 12 },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalIcon: {
+    fontSize: 32,
+  },
+  modalTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
+  modalText: { fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  modalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+  modalButton: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  cancelButton: { backgroundColor: '#F3F4F6' },
+  cancelButtonText: { color: '#6B7280', fontWeight: '600', fontSize: 15 },
+  confirmButton: { backgroundColor: '#DC2626' },
+  confirmButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 15 },
+
+  // Login fallback
+  text: { fontSize: 16, textAlign: 'center', marginTop: 40 },
+  loginButton: {
+    backgroundColor: Colors.primary,
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  loginButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 16 },
 });
