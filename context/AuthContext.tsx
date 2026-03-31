@@ -1,3 +1,13 @@
+import app from '../app/firebase/config';
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut
+} from 'firebase/auth';
+
+const auth = getAuth(app);
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, UserRole } from '../constants/types';
@@ -13,41 +23,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const MOCK_USERS: Record<string, User> = {
-  'student@mess.com': {
-    id: 'current',
-    name: 'Aanya Kapoor',
-    email: 'student@mess.com',
-    role: 'student',
-    hostelName: 'Tagore Hostel',
-    roomNumber: 'B-204',
-    streak: 14,
-    totalMealsSaved: 42,
-    moneySaved: 2100,
-    co2Reduced: 8.4,
-  },
-  'staff@mess.com': {
-    id: 'staff1',
-    name: 'Ramesh Kumar',
-    email: 'staff@mess.com',
-    role: 'staff',
-    hostelName: 'Tagore Hostel Mess',
-    streak: 0,
-    totalMealsSaved: 0,
-    moneySaved: 0,
-    co2Reduced: 0,
-  },
-  'ngo@care.org': {
-    id: 'ngo1',
-    name: 'Food For All NGO',
-    email: 'ngo@care.org',
-    role: 'ngo',
-    streak: 0,
-    totalMealsSaved: 0,
-    moneySaved: 0,
-    co2Reduced: 0,
-  },
-};
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -68,44 +44,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function login(email: string, _password: string, role: UserRole) {
-    await new Promise(r => setTimeout(r, 800)); // Simulate network
-    const found = MOCK_USERS[email.toLowerCase()];
-    const u: User = found ?? {
-      id: 'demo_' + Date.now(),
-      name: 'Demo User',
-      email,
-      role,
-      streak: 7,
-      totalMealsSaved: 21,
-      moneySaved: 1050,
-      co2Reduced: 4.2,
-    };
-    u.role = role;
-    await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
-    setUser(u);
-  }
+async function login(email: string, password: string, role: UserRole) {
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-  async function signup(name: string, email: string, _password: string, role: UserRole) {
-    await new Promise(r => setTimeout(r, 800));
-    const u: User = {
-      id: 'new_' + Date.now(),
-      name,
-      email,
-      role,
-      streak: 0,
-      totalMealsSaved: 0,
-      moneySaved: 0,
-      co2Reduced: 0,
-    };
-    await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
-    setUser(u);
-  }
+  const u: User = {
+    id: userCredential.user.uid,
+    name: email.split('@')[0],
+    email,
+    role,
+    streak: 0,
+    totalMealsSaved: 0,
+    moneySaved: 0,
+    co2Reduced: 0,
+  };
 
-  async function logout() {
-    await AsyncStorage.removeItem('@mess_user');
-    setUser(null);
-  }
+  await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
+  setUser(u);
+}
+
+async function signup(name: string, email: string, password: string, role: UserRole) {
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+  const u: User = {
+    id: userCredential.user.uid,
+    name,
+    email,
+    role,
+    streak: 0,
+    totalMealsSaved: 0,
+    moneySaved: 0,
+    co2Reduced: 0,
+  };
+
+  await AsyncStorage.setItem('@mess_user', JSON.stringify(u));
+  setUser(u);
+}
+
+async function logout() {
+  await signOut(auth);
+  await AsyncStorage.removeItem('@mess_user');
+  setUser(null);
+}
 
   function updateUser(updates: Partial<User>) {
     if (!user) return;
