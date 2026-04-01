@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,23 +20,47 @@ import { StatCard } from '../components/StatCard';
 import { Button } from '../components/Button';
 import { BarChart, LineChart, DonutChart } from '../components/SimpleCharts';
 import { ANALYTICS_DATA } from '../constants/analyticsData';
+import { generateAndDownloadPDF } from '../utils/pdfGenerator';
 
 export default function AnalyticsScreen() {
   const { user } = useAuth();
   const { isDark } = useTheme();
   const scheme = isDark ? Colors.dark : Colors.light;
   const data = ANALYTICS_DATA;
+  const [downloading, setDownloading] = useState(false);
 
   const [monthlyFee, setMonthlyFee] = useState('3500');
   const savings = user?.moneySaved || data.moneySaved;
   const yearlyProjection = savings * 12;
 
-  function handleDownloadPDF() {
-    Alert.alert(
-      '📄 Report Generated',
-      `Weekly Waste Report\n\n• Waste Reduced: ${data.wasteReduced}kg\n• Money Saved: ₹${data.moneySaved}\n• CO₂ Reduced: ${data.co2Reduced}kg\n• People Fed: ${data.peopleFed}\n\nReport saved successfully!`,
-      [{ text: 'OK' }]
-    );
+  // ✅ REAL PDF DOWNLOAD FUNCTION
+  async function handleDownloadPDF() {
+    setDownloading(true);
+    try {
+      const result = await generateAndDownloadPDF({
+        wasteReduced: data.wasteReduced,
+        moneySaved: data.moneySaved,
+        co2Reduced: data.co2Reduced,
+        peopleFed: data.peopleFed,
+        weeklyWaste: data.weeklyWaste,
+        userName: user?.name || 'Student',
+        date: new Date().toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
+      });
+      
+      if (result.success) {
+        Alert.alert('Success', 'Report downloaded successfully!');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to generate report');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Something went wrong');
+    } finally {
+      setDownloading(false);
+    }
   }
 
   function handleShareWhatsApp() {
@@ -155,10 +180,11 @@ export default function AnalyticsScreen() {
         <Text style={[styles.sectionTitle, { color: scheme.text }]}>📤 Export & Share</Text>
         <View style={styles.exportRow}>
           <Button
-            title="📄 Download PDF"
+            title={downloading ? "Generating..." : "📄 Download PDF"}
             variant="primary"
             size="md"
             onPress={handleDownloadPDF}
+            disabled={downloading}
             style={{ flex: 1 }}
           />
           <Button
@@ -169,6 +195,14 @@ export default function AnalyticsScreen() {
             style={{ flex: 1 }}
           />
         </View>
+        
+        {/* Loading indicator if needed */}
+        {downloading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={[styles.loadingText, { color: scheme.text }]}>Generating PDF...</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -205,4 +239,16 @@ const styles = StyleSheet.create({
   calcRowVal: { fontSize: 16, fontWeight: '700' },
 
   exportRow: { flexDirection: 'row', gap: 12 },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  loadingText: { marginTop: 12, fontSize: 14 },
 });

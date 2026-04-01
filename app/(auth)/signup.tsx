@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Colors } from '../../constants/Colors';
 import { Button } from '../../components/Button';
-import { UserRole } from '../../constants/types';
+import type { UserRole } from '../../constants/types';
 
 const ROLES: { id: UserRole; label: string; emoji: string; desc: string }[] = [
   { id: 'student', label: 'Student', emoji: '🎓', desc: 'Mark meals & track savings' },

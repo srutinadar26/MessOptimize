@@ -32,7 +32,6 @@ export default function HomeScreen() {
 
   // Helper to get first name from full name
   const getFirstName = (fullName: string) => {
-    if (!fullName) return 'User';
     return fullName.split(' ')[0];
   };
 
