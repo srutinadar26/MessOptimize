@@ -6,17 +6,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors } from '../constants/Colors';
+import { AttendanceProvider } from '../context/AttendanceContext';
 
 // Debug flag - set to true to show debug screen, false for normal app
-// You can also check for a specific environment variable
-const SHOW_DEBUG_SCREEN = __DEV__ && false; // Set to true to enable debug screen in development
+const SHOW_DEBUG_SCREEN = __DEV__ && false;
 
 function RootNavigator() {
   const { user, isLoading } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
-    // Only auto-redirect if not in debug mode
     if (!SHOW_DEBUG_SCREEN && !showDebug) {
       if (isLoading) return;
 
@@ -48,10 +47,9 @@ function RootNavigator() {
     );
   }
 
-  // Normal app navigation
+  // ✅ FIXED: Normal app navigation - Return the Stack here
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
       <Stack.Screen 
@@ -92,10 +90,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <AuthProvider>
-          <ToastProvider>
-            <RootNavigator />
-            <DebugButton />
-          </ToastProvider>
+          <AttendanceProvider>
+            <ToastProvider>
+              <RootNavigator />
+              <DebugButton />
+            </ToastProvider>
+          </AttendanceProvider>
         </AuthProvider>
       </ThemeProvider>
     </GestureHandlerRootView>

@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Colors } from '../../constants/Colors';
 import { Button } from '../../components/Button';
-import { UserRole } from '../../constants/types';
+import type { UserRole } from '../../constants/types';
 
 const ROLES: { id: UserRole; label: string; emoji: string; desc: string }[] = [
   { id: 'student', label: 'Student', emoji: '🎓', desc: 'Mark meals & track savings' },
@@ -24,48 +24,54 @@ const ROLES: { id: UserRole; label: string; emoji: string; desc: string }[] = [
   { id: 'ngo', label: 'NGO Partner', emoji: '🤝', desc: 'Claim surplus food' },
 ];
 
-export default function LoginScreen() {
-  const { login, loginWithGoogle } = useAuth();
+export default function SignupScreen() {
+  const { signup } = useAuth();
   const { isDark } = useTheme();
   const scheme = isDark ? Colors.dark : Colors.light;
 
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>('student');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  async function handleLogin() {
-    if (!email || !password) {
-      Alert.alert('Missing fields', 'Please enter email and password');
+  async function handleSignup() {
+    // Validation
+    if (!name.trim()) {
+      Alert.alert('Missing Field', 'Please enter your full name');
       return;
     }
-    setLoading(true);
-    try {
-      const result = await login(email, password, role);
-      if (result.success) {
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert('Login Failed', result.error || 'Please check your credentials');
-      }
-    } catch (e: any) {
-      Alert.alert('Login Failed', e.message || 'Something went wrong');
-    } finally {
-      setLoading(false);
+    if (!email.trim()) {
+      Alert.alert('Missing Field', 'Please enter your email');
+      return;
     }
-  }
+    if (!password) {
+      Alert.alert('Missing Field', 'Please enter a password');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Password Mismatch', 'Passwords do not match');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Weak Password', 'Password must be at least 6 characters');
+      return;
+    }
 
-  async function handleGoogleLogin() {
     setLoading(true);
     try {
-      const result = await loginWithGoogle(role);
+      const result = await signup(name.trim(), email.trim(), password, role);
+      
       if (result.success) {
         router.replace('/(tabs)');
       } else {
-        Alert.alert('Google Sign-In Failed', result.error || 'Please try again');
+        Alert.alert('Signup Failed', result.error || 'Unable to create account');
       }
     } catch (error: any) {
-      Alert.alert('Google Sign-In Failed', error.message || 'Something went wrong');
+      Alert.alert('Signup Failed', error.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -73,7 +79,6 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: scheme.background }]}>
-      {/* Header gradient */}
       <LinearGradient
         colors={[Colors.primary, Colors.info]}
         start={{ x: 0, y: 0 }}
@@ -82,15 +87,15 @@ export default function LoginScreen() {
       >
         <View style={styles.logoContainer}>
           <Text style={styles.logoEmoji}>♻️</Text>
-          <Text style={styles.logoTitle}>MessOptimize</Text>
-          <Text style={styles.logoSub}>Feed more. Waste less.</Text>
+          <Text style={styles.logoTitle}>Join MessOptimize</Text>
+          <Text style={styles.logoSub}>Start reducing food waste today</Text>
         </View>
       </LinearGradient>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.sectionTitle, { color: scheme.text }]}>Welcome back 👋</Text>
-          <Text style={[styles.sectionSub, { color: scheme.textSecondary }]}>Sign in to your account</Text>
+          <Text style={[styles.sectionTitle, { color: scheme.text }]}>Create Account ✨</Text>
+          <Text style={[styles.sectionSub, { color: scheme.textSecondary }]}>Choose your role to get started</Text>
 
           {/* Role selector */}
           <View style={styles.rolesRow}>
@@ -112,6 +117,20 @@ export default function LoginScreen() {
           <Text style={[styles.roleDesc, { color: scheme.textSecondary }]}>
             {ROLES.find(r => r.id === role)?.desc}
           </Text>
+
+          {/* Name */}
+          <Text style={[styles.inputLabel, { color: scheme.textSecondary }]}>Full Name</Text>
+          <View style={[styles.inputWrap, { backgroundColor: scheme.inputBg, borderColor: scheme.border }]}>
+            <Text style={styles.inputIcon}>👤</Text>
+            <TextInput
+              style={[styles.input, { color: scheme.text }]}
+              value={name}
+              onChangeText={setName}
+              placeholder="Your full name"
+              placeholderTextColor={scheme.textMuted}
+              autoCapitalize="words"
+            />
+          </View>
 
           {/* Email */}
           <Text style={[styles.inputLabel, { color: scheme.textSecondary }]}>Email</Text>
@@ -138,33 +157,51 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              placeholder="••••••••"
+              placeholder="Min. 6 characters"
               placeholderTextColor={scheme.textMuted}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
               <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
             </TouchableOpacity>
-          </View><br></br>
-
-          <Button
-            title="Sign In"
-            onPress={handleLogin}
-            loading={loading}
-            size="lg"
-            style={styles.loginBtn}
-          />
-
-          <View style={styles.dividerRow}>
-            <View style={[styles.divider, { backgroundColor: scheme.border }]} />
-            <Text style={[styles.dividerText, { color: scheme.textMuted }]}>or</Text>
-            <View style={[styles.divider, { backgroundColor: scheme.border }]} />
           </View>
 
-          <View style={styles.signupRow}>
-            <Text style={[styles.signupText, { color: scheme.textSecondary }]}>Don't have an account? </Text>
-            <Link href="/(auth)/signup" asChild>
+          {/* Confirm Password */}
+          <Text style={[styles.inputLabel, { color: scheme.textSecondary }]}>Confirm Password</Text>
+          <View style={[styles.inputWrap, { backgroundColor: scheme.inputBg, borderColor: scheme.border }]}>
+            <Text style={styles.inputIcon}>🔐</Text>
+            <TextInput
+              style={[styles.input, { color: scheme.text }]}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+              placeholder="Re-enter password"
+              placeholderTextColor={scheme.textMuted}
+            />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+              <Text style={styles.eyeIcon}>{showConfirmPassword ? '🙈' : '👁'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Demo Hint */}
+          <View style={[styles.demoHint, { backgroundColor: Colors.accent + '20' }]}>
+            <Text style={[styles.hintText, { color: scheme.textSecondary }]}>
+              Demo: Use any email and password (min 6 chars)
+            </Text>
+          </View>
+
+          <Button
+            title="Create Account"
+            onPress={handleSignup}
+            loading={loading}
+            size="lg"
+            style={styles.signupBtn}
+          />
+
+          <View style={styles.loginRow}>
+            <Text style={[styles.loginText, { color: scheme.textSecondary }]}>Already have an account? </Text>
+            <Link href="/(auth)/login" asChild>
               <TouchableOpacity>
-                <Text style={styles.signupLink}>Sign up</Text>
+                <Text style={styles.loginLink}>Sign in</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -178,15 +215,15 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: 32,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
   logoContainer: { alignItems: 'center' },
-  logoEmoji: { fontSize: 48, marginBottom: 8 },
-  logoTitle: { fontSize: 28, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
-  logoSub: { fontSize: 15, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  logoEmoji: { fontSize: 44, marginBottom: 6 },
+  logoTitle: { fontSize: 26, fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
+  logoSub: { fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
   scrollContent: { padding: 24, paddingBottom: 48 },
   sectionTitle: { fontSize: 24, fontWeight: '800', marginTop: 8, marginBottom: 4 },
   sectionSub: { fontSize: 15, marginBottom: 20 },
@@ -201,8 +238,8 @@ const styles = StyleSheet.create({
   roleCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + '10' },
   roleEmoji: { fontSize: 24, marginBottom: 4 },
   roleLabel: { fontSize: 12, fontWeight: '700' },
-  roleDesc: { fontSize: 12, marginBottom: 20, textAlign: 'center' },
-  inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 10 },
+  roleDesc: { fontSize: 12, marginBottom: 16, textAlign: 'center' },
+  inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 8 },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -223,31 +260,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   hintText: { fontSize: 11, lineHeight: 15 },
-  loginBtn: { width: '100%', marginBottom: 20 },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  divider: { flex: 1, height: 1 },
-  dividerText: { fontSize: 13 },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  googleIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleIcon: { fontSize: 16, fontWeight: '800', color: Colors.secondary },
-  googleText: { fontSize: 15, fontWeight: '600' },
-  signupRow: { flexDirection: 'row', justifyContent: 'center' },
-  signupText: { fontSize: 14 },
-  signupLink: { fontSize: 14, fontWeight: '700', color: Colors.secondary },
+  signupBtn: { width: '100%', marginTop: 20, marginBottom: 20 },
+  loginRow: { flexDirection: 'row', justifyContent: 'center' },
+  loginText: { fontSize: 14 },
+  loginLink: { fontSize: 14, fontWeight: '700', color: Colors.secondary },
 });
